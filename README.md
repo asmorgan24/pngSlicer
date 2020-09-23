@@ -1,7 +1,7 @@
-Python SLicer to PNG Images
+Python-based Slicer from STL to PNG Images
 ==========
 
-This code is in production, and produced png images from an STL file. It is an edited version of that from https://github.com/matthewelse/pySlice.
+This code is in production and is not complete. While running, it produces png images from an STL file. There is currently no visualization or gui. All scalining and orientation setting must be completed beforehand. This code base is extended from a different [project] (https://github.com/matthewelse/pySlice).
 
 
 Original Text:
