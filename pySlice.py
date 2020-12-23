@@ -107,7 +107,7 @@ def slice_file(f=None, resolution=0.1):
 						vertice_sets.append(vertices)
 						vertices = []
 						for next_vert in range(vert_array.shape[0]):
-						 	if next_vert not in visited_vertices:
+							if next_vert not in visited_vertices:
 								current_index = next_vert
 					#Now that we have found the match, find the corresponding vertex, remember that they are in pairs of two
 					elif id%2 ==1:
