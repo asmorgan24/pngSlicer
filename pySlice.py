@@ -135,7 +135,7 @@ def slice_file(f=None, resolution=0.1):
 
 
 	print("Status: Finished Outputting Slices")
-	print 'Time: ', time.time()-tic
+	print('Time: ', time.time()-tic)
 
 if __name__ == '__main__':
 	# Run as a command line program.
