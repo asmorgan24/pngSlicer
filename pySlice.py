@@ -86,14 +86,14 @@ def slice_file(f=None, resolution=0.1):
 		#Now process vertices
 		a = np.asarray(pairs)
 		b = a.flatten()
-		vert_array = b.reshape(b.shape[0]/2, 2) #this is now twice as long and just not four wide, it is now too wide
+		vert_array = b.reshape(int(b.shape[0]/2), 2) #this is now twice as long and just not four wide, it is now too wide
 		tree = KDTree(vert_array, leaf_size = 3)
 		current_index = 1
 		vertices = []
 		vertice_sets = []
 		visited_vertices = [current_index]
 		vertices.append(tuple(vert_array[current_index]))
-		for i in range(vert_array.shape[0]/2):
+		for i in range(int(vert_array.shape[0]/2)):
 			to_query = np.reshape(vert_array[current_index], (1,2))
 			dist, ind = tree.query(to_query, k =2)
 			for id in list(ind[0]): #there should only ever be two
@@ -107,7 +107,7 @@ def slice_file(f=None, resolution=0.1):
 						vertice_sets.append(vertices)
 						vertices = []
 						for next_vert in range(vert_array.shape[0]):
-						 	if next_vert not in visited_vertices:
+							if next_vert not in visited_vertices:
 								current_index = next_vert
 					#Now that we have found the match, find the corresponding vertex, remember that they are in pairs of two
 					elif id%2 ==1:
@@ -135,7 +135,7 @@ def slice_file(f=None, resolution=0.1):
 
 
 	print("Status: Finished Outputting Slices")
-	print 'Time: ', time.time()-tic
+	print('Time: ', time.time()-tic)
 
 if __name__ == '__main__':
 	# Run as a command line program.
