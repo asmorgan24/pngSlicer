@@ -1,7 +1,7 @@
 Python-based Slicer from STL to PNG Images
 ==========
 
-This code is in production and is not complete! 
+This code works mostly as desired but is still under construction! 
 
 Currently, it produces a folder of PNG images from an STL file. Each PNG has filled in contours signifying object geometry at that slice. There is currently no visualization or gui, but am working on this currently. All orientation settings must be completed beforehand (but I am working on adding such functionality). This code base is extended from a different [project](https://github.com/matthewelse/pySlice).
 
