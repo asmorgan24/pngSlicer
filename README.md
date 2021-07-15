@@ -9,7 +9,7 @@ Please read through the available command line options for scaling and setting z
 
 ### Getting started
 
-This code was written in Python 3.6 while installing the various packages via pip. You should be able to do the same via ```pip install [name_of_modele]```.
+This code was written in Python 3.6 while installing the various packages via pip. You should be able to do the same via ```pip install [name_of_module]```.
 
 
 ### Original Text:
