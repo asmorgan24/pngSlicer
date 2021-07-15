@@ -28,17 +28,50 @@ import sys, cairosvg, IPython, time
 from PIL import Image, ImageDraw
 import numpy as np
 from sklearn.neighbors import KDTree
+import IPython
+
+#determine how much space a pixel takes up physically
+def calculateMultiplier(pixels, mm):
+	return pixels/mm
+
+def mmToinch(num):
+	return num/25.4
+
+def inchTomm(num):
+	return num*25.4
+
+def convertToPixels(vSet, width_multiplier, height_multiplier, object_center, center_image):
+	mmSet = inchTomm(np.asarray(vSet))
+	mmSet[:,0]*=width_multiplier #now in pixels
+	mmSet[:,1]*=height_multiplier #now in pixels
+
+	#center the object
+	mmSet[:,0]+=(center_image[0])
+	mmSet[:,0]-=(inchTomm(object_center[0])*width_multiplier)
+	mmSet[:,1]+=(center_image[1])
+	mmSet[:,1]-=(inchTomm(object_center[1])*height_multiplier)
+
+	m = list(mmSet)
+	for i in range(len(mmSet)):
+		m[i]= tuple(m[i])
+	return m
 
 
-def slice_file(f=None, resolution=0.1):
+def slice_file(resolution, f=None, scale_model = None,width_px = None, height_px = None, width_printer = None, height_printer = None):
+
 	print("Status: Loading File.")
 
+	width_multiplier = calculateMultiplier(width_px, width_printer) #converstion from mm to pixels
+	height_multiplier = calculateMultiplier(height_px, height_printer) #conversion from mm to pixels
+
 	model = STLModel(f)
-	scale = 20
 	stats = model.stats()
 
+
+	#Note these are in inches not mm
 	sub_vertex = Vector3(stats['extents']['x']['lower'], stats['extents']['y']['lower'], stats['extents']['z']['lower'])
-	add_vertex = Vector3(0.5,0.5,0.5)
+
+	center_image= [int(width_px/2), int(height_px/2)] #pixels
 
 	model.xmin = model.xmax = None
 	model.ymin = model.ymax = None
@@ -53,9 +86,9 @@ def slice_file(f=None, resolution=0.1):
 
 		# The lines above have no effect on the normal.
 
-		triangle.vertices[0] = (triangle.vertices[0] * scale) + add_vertex
-		triangle.vertices[1] = (triangle.vertices[1] * scale) + add_vertex
-		triangle.vertices[2] = (triangle.vertices[2] * scale) + add_vertex
+		triangle.vertices[0] = (triangle.vertices[0] * scale_model) #in inches
+		triangle.vertices[1] = (triangle.vertices[1] * scale_model) #in inches
+		triangle.vertices[2] = (triangle.vertices[2] * scale_model) #in inches
 
 		# Recalculate the triangle normal
 
@@ -67,15 +100,20 @@ def slice_file(f=None, resolution=0.1):
 
 	print("Status: Calculating Slices")
 
-	interval = scale * resolution
 	stats = model.stats()
-	print(stats)
+
+	#This is after scaling the object
+	sub_vertex = Vector3(stats['extents']['x']['lower'], stats['extents']['y']['lower'], stats['extents']['z']['lower'])
+	sup_vertex = Vector3(stats['extents']['x']['upper'], stats['extents']['y']['upper'], stats['extents']['z']['upper'])
+	obj_center_xyz = [(sup_vertex.x+sub_vertex.x)/2,(sup_vertex.y+sub_vertex.y)/2,(sup_vertex.z+sub_vertex.z)/2] #in inches
+
+	slices = np.linspace(0.001, stats['extents']['z']['upper']-0.001, int(stats['extents']['z']['upper']/(mmToinch(resolution)))+1)
 
 	tic = time.time()
 
-	for targetz in range(1, int(stats['extents']['z']['upper']), int(interval)):
-		dwg = Drawing('outputs/svg/'+str(targetz)+'.svg', profile='full')
-		pairs = model.slice_at_z(targetz)
+	for slice in range(len(slices)):#1, int(stats['extents']['z']['upper']), int(interval)):
+		dwg = Drawing('outputs/svg/'+str(slice)+'.svg', profile='full')
+		pairs = model.slice_at_z(slices[slice])
 		#for pair in pairs:
 		#	dwg.add(dwg.line(pair[0], pair[1], stroke=rgb(0, 0, 0, "%")))
 		#dwg.attribs['viewBox']= str(model.xmin)+" "+str(model.ymin)+" "+ str(model.xmax)+" "+str(model.ymax)
@@ -120,19 +158,19 @@ def slice_file(f=None, resolution=0.1):
 			vertices.append(tuple(vert_array[current_index]))
 			visited_vertices.append(current_index)
 
-			#Draw the percentage done
-			sys.stdout.write("\r%d%%" % int((float(targetz)/(float(len(range(1, int(stats['extents']['z']['upper']), int(interval))))))*100))
-			sys.stdout.flush()
+		#Draw the percentage done
+		sys.stdout.write("\r%d%%" % int(slice/len(slices)*100))
+		sys.stdout.flush()
 
 		#Save the last one to the vertice set
 		vertice_sets.append(vertices)
-		img = Image.new('RGB', (2000, 2000)) # Use RGB
+		img = Image.new('RGB', (height_px, width_px)) # Use RGB, these may be backwards TODO
 		draw = ImageDraw.Draw(img)
 		for i in range(len(vertice_sets)):
 			if len(vertice_sets[i])>2:
-				draw.polygon(vertice_sets[i], fill = (255, 255, 255))
-		img.save('outputs/png_filled/'+str(targetz)+'.png', 'PNG')
-
+				set = convertToPixels(vertice_sets[i], width_multiplier, height_multiplier, obj_center_xyz, center_image)
+				draw.polygon(set, fill = (255, 255, 255))
+		img.save('outputs/png_filled/'+str(slice)+'.png', 'PNG')
 
 	print("Status: Finished Outputting Slices")
 	print('Time: ', time.time()-tic)
@@ -146,11 +184,27 @@ if __name__ == '__main__':
 						metavar='FILE',
 						help='File to be sliced',
 						nargs='?',
+						# default='models/cube.STL',
 						default='models/yodabust.stl',
 						type=argparse.FileType('rb'))
-	parser.add_argument('-r', '--resolution', type=float,
+	parser.add_argument('-s', '--scale', type=float,
 						default=0.05,
+						help='Scale multiplier of the model')
+	parser.add_argument('-r', '--resolution', type=float,
+						default=3.,
 						help='The Z-Axis resolution of the printer, in mms')
+	parser.add_argument('-wi', '--width', type=int,
+						default=2000,
+						help='PNG image width')
+	parser.add_argument('-he', '--height', type=int,
+						default=2000,
+						help='PNG image height')
+	parser.add_argument('-heP', '--height_printer', type=int,
+						default=200,
+						help='actual height of the 3d printers bed size, in mms')
+	parser.add_argument('-wiP', '--width_printer', type=int,
+						default=200,
+						help='actual width of the 3d printers bed size, in mms')
 
 	args = parser.parse_args()
-	slice_file(args.file, args.resolution)
+	slice_file(args.resolution, args.file, args.scale, args.width, args.height, args.width_printer, args.height_printer)
